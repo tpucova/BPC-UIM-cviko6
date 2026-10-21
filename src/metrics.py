@@ -77,6 +77,18 @@ def confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     """
     # assert  Ověřte, že y_true a y_pred maji stejnou delku
     # assert  Ověřte, že hodnoty jsou binarni (podmnozina {0, 1})
+    y_true_arr = np.asarray(y_true).ravel()
+    y_pred_arr = np.asarray(y_pred).ravel()
+    assert len(y_true_arr) == len(y_pred_arr)
+    assert set(np.unique(y_true_arr)).issubset({0, 1})
+    assert set(np.unique(y_pred_arr)).issubset({0, 1})
+
+    tn = np.sum((y_true_arr == 0) & (y_pred_arr == 0))
+    fp = np.sum((y_true_arr == 0) & (y_pred_arr == 1))
+    fn = np.sum((y_true_arr == 1) & (y_pred_arr == 0))
+    tp = np.sum((y_true_arr == 1) & (y_pred_arr == 1))
+
+    return np.array([[tn, fp], [fn, tp]], dtype=int)
     raise NotImplementedError(
         "Úkol: sestavte 2x2 kontingecni tabulku [[TN, FP], [FN, TP]]; viz docstring."
     )
@@ -111,6 +123,14 @@ def accuracy(cm: np.ndarray) -> float:
     v klinickem kontextu sleduje hlavne recall/Se a specificita, ne accuracy.
     """
     # assert  Ověřte, že cm ma tvar (2, 2)
+    assert cm.shape == (2, 2)
+    tn, fp, fn, tp = cm[0, 0], cm[0, 1], cm[1, 0], cm[1, 1]
+    total = tn + fp + fn + tp
+
+    if total == 0:
+        return 0.0
+
+    return float((tp + tn) / total)
     raise NotImplementedError(
         "Úkol: vratte (TP + TN) / celkovy pocet vzorku; pri nulovem jmenovateli vratte 0.0."
     )
@@ -144,6 +164,14 @@ def precision(cm: np.ndarray) -> float:
     propasnuty nador (nizky recall/Se).
     """
     # assert  Ověřte, že cm ma tvar (2, 2)
+    assert cm.shape == (2, 2)
+    fp, tp = cm[0, 1], cm[1, 1]
+    denom = tp + fp
+
+    if denom == 0:
+        return 0.0
+
+    return float(tp / denom)
     raise NotImplementedError(
         "Úkol: vratte TP / (TP + FP); pri nulovem jmenovateli vratte 0.0."
     )
@@ -178,6 +206,14 @@ def recall_sensitivity(cm: np.ndarray) -> float:
     snizuje specificitu (vic falesnych poplachu).
     """
     # assert  Ověřte, že cm ma tvar (2, 2)
+    assert cm.shape == (2, 2)
+    fn, tp = cm[1, 0], cm[1, 1]
+    denom = tp + fn
+
+    if denom == 0:
+        return 0.0
+
+    return float(tp / denom)
     raise NotImplementedError(
         "Úkol: vratte TP / (TP + FN) (= recall = Se = TPR); pri nulovem jmenovateli vratte 0.0."
     )
@@ -211,6 +247,14 @@ def specificity(cm: np.ndarray) -> float:
     Se vs. Sp je kompromis: co zvysi jedno, obvykle snizi druhe.
     """
     # assert  Ověřte, že cm ma tvar (2, 2)
+    assert cm.shape == (2, 2)
+    tn, fp = cm[0, 0], cm[0, 1]
+    denom = tn + fp
+
+    if denom == 0:
+        return 0.0
+
+    return float(tn / denom)
     raise NotImplementedError(
         "Úkol: vratte TN / (TN + FP) (= Sp = TNR); pri nulovem jmenovateli vratte 0.0."
     )
@@ -248,6 +292,14 @@ def f1_score(cm: np.ndarray) -> float:
     vazenou variantu (F-beta s beta > 1).
     """
     # assert  Ověřte, že cm ma tvar (2, 2)
+    assert cm.shape == (2, 2)
+    p = precision(cm)
+    r = recall_sensitivity(cm)
+
+    if p + r == 0.0:
+        return 0.0
+
+    return float(2 * p * r / (p + r))
     raise NotImplementedError(
         "Úkol: vratte harmonicky prumer precision a recall; pri nulovem jmenovateli vratte 0.0."
     )

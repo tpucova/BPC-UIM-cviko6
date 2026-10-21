@@ -51,6 +51,11 @@ def standardize_fit(x_train: np.ndarray) -> dict:
     # Vstup preveďte na float64. Spočtěte průměr a POPULAČNÍ směrodatnou
     # odchylku (ddof=0) PO SLOUPCÍCH (axis=0) a vraťte je jako slovník
     # {"mean": ..., "std": ...}.
+    x_train_arr = np.asarray(x_train, dtype=np.float64)
+    assert x_train_arr.ndim == 2
+    mean = np.mean(x_train_arr, axis=0)
+    std = np.std(x_train_arr, axis=0)
+    return {"mean": mean, "std": std}
     raise NotImplementedError(
         "Úkol: vratte {'mean': prumer po sloupcich, 'std': smerodatna "
         "odchylka po sloupcich (ddof=0)} spocitane jen z x_train."
@@ -84,6 +89,14 @@ def standardize_apply(x: np.ndarray, params: dict) -> np.ndarray:
     # x, mean i std preveďte na float64. Ve std nahraďte nuly jedničkou
     # (např. np.where(std == 0.0, 1.0, std)), aby nedošlo k dělení nulou,
     # a vraťte (x - mean) / std_safe.
+    assert 'mean' in params and 'std' in params
+    x_arr = np.asarray(x, dtype=np.float64)
+    mean = np.asarray(params["mean"], dtype=np.float64)
+    std = np.asarray(params["std"], dtype=np.float64)
+
+    assert x_arr.shape[1] == len(mean)
+    std_safe = np.where(std == 0.0, 1.0, std)
+    return (x_arr - mean) / std_safe
     raise NotImplementedError(
         "Úkol: vratte (x - params['mean']) / params['std'] jako float64; "
         "nulovou smerodatnou odchylku nejprve nahradte 1.0."
@@ -153,6 +166,43 @@ def subsample_imbalance(
     #   4. z početnější strany vyberte rng.choice(idx, size=..., replace=False)
     #   5. spojte ponechané indexy, zamíchejte (rng.shuffle) a vraťte
     #      (x[keep], y[keep])
+    assert 0 < minority_ratio < 0.5, f"minority_ratio musí být v intervalu (0, 0.5), zadáno: {minority_ratio}."
+
+    y_arr = np.asarray(y).ravel()
+    unique_classes = np.unique(y_arr)
+    assert len(unique_classes) == 2, f"y musí obsahovat obě třídy (0 a 1), nalezeno: {unique_classes}."
+
+    x_arr = np.asarray(x, dtype=np.float64)
+    rng = np.random.default_rng(random_state)
+
+    # Třída 1 = minoritní / pozitivní třída (maligní)[cite: 3, 5]
+    # Třída 0 = majoritní / negativní třída (benigní)[cite: 3, 5]
+    pos_idx = np.flatnonzero(y_arr == 1)
+    neg_idx = np.flatnonzero(y_arr == 0)
+
+    n_pos = len(pos_idx)
+    n_neg = len(neg_idx)
+
+    curr_ratio = n_pos / (n_pos + n_neg)
+    r = minority_ratio
+
+    if curr_ratio > r:
+        # Aktuální podíl třídy 1 je větší než r -> podvzorkujeme třídu 1[cite: 5]
+        keep_neg = neg_idx
+        n_pos_keep = int(round(r * n_neg / (1.0 - r)))
+        n_pos_keep = max(1, min(n_pos_keep, n_pos))
+        keep_pos = rng.choice(pos_idx, size=n_pos_keep, replace=False)
+    else:
+        # Aktuální podíl třídy 1 je menší než r -> podvzorkujeme třídu 0[cite: 5]
+        keep_pos = pos_idx
+        n_neg_keep = int(round(n_pos * (1.0 - r) / r))
+        n_neg_keep = max(1, min(n_neg_keep, n_neg))
+        keep_neg = rng.choice(neg_idx, size=n_neg_keep, replace=False)
+
+    keep = np.concatenate([keep_pos, keep_neg])
+    rng.shuffle(keep)
+
+    return x_arr[keep], y_arr[keep]
     raise NotImplementedError(
         "Úkol: podvzorkujte data tak, aby minoritni trida tvorila zhruba "
         "minority_ratio z celku (viz sekce 'Detail vypoctu' v docstringu)."

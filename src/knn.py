@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+import os
+
 if TYPE_CHECKING:
     from src.distance import Distance
 
@@ -112,10 +114,25 @@ class KNNClassifier:
         """
         # assert  Ověřte, že model je nafitovan (self.x_train_ není None)
         # assert  Ověřte, že x.shape[1] == self.x_train_.shape[1]
+        assert self.x_train_ is not None
+        assert x.shape[1] == self.x_train_.shape[1]
+        n_queries = x.shape[0]
+        y_pred = np.empty(n_queries, dtype=self.y_train_.dtype)
+
+        for i in range(n_queries):
+            x_query = x[i]
+            distances = np.array([self.distance.calculate(x_query, row) for row in self.x_train_])
+            nearest_indices = np.argsort(distances, kind="stable")[: self.k]
+            nearest_labels = self.y_train_[nearest_indices]
+            counts = np.bincount(nearest_labels)
+            y_pred[i] = np.argmax(counts)
+
+        return y_pred
         raise NotImplementedError(
             "Úkol: pro kazdy radek x spoctete vzdalenost ke vsem trenovacim bodum "
             "pres self.distance.calculate, vezmete k nejblizsich a vratte vetsinovy hlas."
         )
+
 
     def save(self, path: str) -> None:
         """Ulozi nauceny model do souboru ``.npz`` (format NumPy).
@@ -138,15 +155,22 @@ class KNNClassifier:
             ``.npz`` automaticky, pokud v ceste chybi.
         """
         # assert  Ověřte, že model je nafitovan (self.x_train_ není None)
+        assert self.x_train_ is not None
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        np.savez(
+            path,
+            x_train=self.x_train_,
+            y_train=self.y_train_,
+            k=np.asarray(self.k),
+        )
         #
         # Ulozte pres np.savez(path, ...) tato tri pole:
         #   x_train = self.x_train_
         #   y_train = self.y_train_
         #   k       = np.asarray(self.k)
-        raise NotImplementedError(
-            "Úkol: ulozte self.x_train_, self.y_train_ a self.k do .npz souboru "
-            "pres np.savez(path, x_train=..., y_train=..., k=...)."
-        )
+
 
     # Zamerne NENI @classmethod (na rozdil od PCA.load v cviceni 05): kNN
     # potrebuje ke svemu behu injektovanou metriku Distance, ktera se do .npz
@@ -173,6 +197,14 @@ class KNNClassifier:
             ``.load(...).predict(...)``.
         """
         # assert  Ověřte, že soubor existuje a je validní .npz soubor
+        assert os.path.exists(path)
+        data = np.load(path)
+        data = np.load(path)
+        self.x_train_ = np.asarray(data["x_train"], dtype=np.float64)
+        self.y_train_ = np.asarray(data["y_train"]).ravel().astype(int)
+        self.k = int(data["k"])
+
+        return self
         raise NotImplementedError(
             "Úkol: nactete x_train, y_train a k z .npz souboru pres np.load(path) "
             "a ulozte je do self.x_train_, self.y_train_ a self.k."

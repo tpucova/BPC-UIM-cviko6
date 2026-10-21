@@ -229,10 +229,23 @@ class KFold(Validator):
         """
         # assert  Ověřte, že self.n_folds je alespon 2
         # assert  Ověřte, že self.n_folds neni vetsi nez pocet vzorku x.shape[0]
-        raise NotImplementedError(
-            "Úkol: rozdelte indexy do n_folds foldu; kazdy fold jednou jako test, "
-            "zbytek train; kazdy vzorek testovan prave jednou. Viz docstring."
-        )
+        n_samples = x.shape[0]
+        assert self.n_folds >= 2
+        assert n_samples >= self.n_folds
+        indices = np.arange(n_samples)
+        if self.shuffle:
+            rng = np.random.default_rng(self.random_state)
+            rng.shuffle(indices)
+
+        folds = np.array_split(indices, self.n_folds)
+
+        for i in range(self.n_folds):
+            test_idx = np.sort(folds[i])
+            train_idx = np.sort(
+                np.hstack([folds[j] for j in range(self.n_folds) if j != i])
+            )
+            yield train_idx, test_idx
+
 
 
 class Bootstrap(Validator):
@@ -309,10 +322,22 @@ class Bootstrap(Validator):
         """
         # assert  Ověřte, že self.n_bootstrap je alespon 1
         # assert  Ověřte, že X.shape[0] > 0
-        raise NotImplementedError(
-            "Úkol: n_bootstrap-krat vyberte n train indexu s opakovanim; "
-            "out-of-bag (nevybrane) indexy jsou test. Viz docstring."
-        )
+        n_samples = x.shape[0]
+        assert self.n_bootstrap >= 1
+        assert n_samples > 0
+        all_indices = np.arange(n_samples)
+        rng = np.random.default_rng(self.random_state)
+
+        for _ in range(self.n_bootstrap):
+            train_idx = rng.choice(n_samples, size=n_samples, replace=True)
+            unique_train = np.unique(train_idx)
+            test_idx = np.setdiff1d(all_indices, unique_train)
+
+            if len(test_idx) == 0:
+                continue
+
+            yield train_idx, np.sort(test_idx)
+
 
 
 def cross_validate(
